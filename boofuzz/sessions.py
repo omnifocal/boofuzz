@@ -575,7 +575,7 @@ class Session(pgraph.Graph):
                         self.total_mutant_index += skipped
                         self.fuzz_node.mutant_index += skipped
 
-            self.restart_target(target, stop_first=False)
+            self.restart_target(target, stop_first=True)
 
     # noinspection PyUnusedLocal
     def post_send(self, target, fuzz_data_logger, session, sock, *args, **kwargs):

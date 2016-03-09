@@ -6,6 +6,8 @@ import time
 import threading
 import subprocess
 
+import vtrace
+
 from boofuzz import pedrpc
 
 '''
@@ -32,7 +34,7 @@ Limitations
     - Currently only accepts one start_command
     - Limited 'crash binning'. Relies on the availability of core dumps. These
       should be created in the same directory the process is ran from on Linux
-      and in the (hidden) /cores directory on OS X. On OS X you have to add 
+      and in the (hidden) /cores directory on OS X. On OS X you have to add
       the option COREDUMPS=-YES- to /etc/hostconfig and then `ulimit -c
       unlimited` as far as I know. A restart may be required. The file
       specified by crash_bin will any other available details such as the test
@@ -45,7 +47,6 @@ USAGE = "USAGE: process_monitor_unix.py"\
         "\n    [-l|--log_level LEVEL]       log level (default 1), increase for more verbosity"
 
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
-
 
 class DebuggerThread:
     def __init__(self, start_command):
@@ -61,11 +62,19 @@ class DebuggerThread:
         self.pid = None
         self.exit_status = None
         self.alive = False
+        self.trace = vtrace.getTrace()
 
     def spawn_target(self):
         print self.tokens
         self.pid = subprocess.Popen(self.tokens).pid
         self.alive = True
+        try:
+            self.trace.attach(self.pid)
+            self.trace.setMode("NonBlocking", True)
+            self.trace.run()
+        except Exception as e:
+            print('Exception when attaching/running trace!')
+            raise e
 
     def start_monitoring(self):
         """
@@ -84,6 +93,9 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
+        time.sleep(0.1) #yolo
+        self.trace.sendBreak()
+        self.trace.detach()
         os.kill(self.pid, signal.SIGKILL)
         self.alive = False
 
@@ -276,4 +288,3 @@ if __name__ == "__main__":
 
     servlet = NIXProcessMonitorPedrpcServer("0.0.0.0", PORT, crash_bin, log_level)
     servlet.serve_forever()
-
