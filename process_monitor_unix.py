@@ -48,6 +48,16 @@ USAGE = "USAGE: process_monitor_unix.py"\
 
 ERR   = lambda msg: sys.stderr.write("ERR> " + msg + "\n") or sys.exit(1)
 
+class MyNotifier(vtrace.Notifier):
+    """
+    Callback notifier for procmon to catch signals and breaks.
+    """
+    def __init__(self):
+        super(MyNotifier, self).__init__()
+
+    def notify(self, event, trace):
+        print('Notifier detected an event! - {}'.format(event.__repr__()))
+
 class DebuggerThread:
     def __init__(self, start_command):
         """
@@ -68,13 +78,6 @@ class DebuggerThread:
         print self.tokens
         self.pid = subprocess.Popen(self.tokens).pid
         self.alive = True
-        try:
-            self.trace.attach(self.pid)
-            self.trace.setMode("NonBlocking", True)
-            self.trace.run()
-        except Exception as e:
-            print('Exception when attaching/running trace!')
-            raise e
 
     def start_monitoring(self):
         """
@@ -82,6 +85,11 @@ class DebuggerThread:
         while self.exit_status == (0, 0):
             self.exit_status = os.waitpid(self.pid, os.WNOHANG | os.WUNTRACED)
         """
+        self.trace.attach(self.pid)
+        print('Trace attached successfully')
+        print('Registering a notifier')
+        self.trace.registerNotifier(vtrace.NOTIFY_ALL, MyNotifier())
+        threading.Thread(target=self.trace.run).start()
 
         self.exit_status = os.waitpid(self.pid, 0)
         # [0] is the pid
@@ -93,9 +101,9 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
-        time.sleep(0.1) #yolo
         self.trace.sendBreak()
-        self.trace.detach()
+        self.trace.release()
+        print('Trace detached, killing process')
         os.kill(self.pid, signal.SIGKILL)
         self.alive = False
 
@@ -287,4 +295,11 @@ if __name__ == "__main__":
     # spawn the PED-RPC servlet.
 
     servlet = NIXProcessMonitorPedrpcServer("0.0.0.0", PORT, crash_bin, log_level)
-    servlet.serve_forever()
+    try:
+        servlet.serve_forever()
+    except KeyboardInterrupt as e:
+        servlet.log('Detected KeyboardInterrupt, shutting down')
+        servlet.dbg.trace.sendBreak()
+        servlet.dbg.trace.kill()
+        servlet.dbg.trace.release()
+        raise e
