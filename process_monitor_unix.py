@@ -56,7 +56,18 @@ class MyNotifier(vtrace.Notifier):
         super(MyNotifier, self).__init__()
 
     def notify(self, event, trace):
-        print('Notifier detected an event! - {}'.format(event.__repr__()))
+        if event == vtrace.NOTIFY_SIGNAL:
+            print('Signal detected with code: {}'.format(trace.getCurrentSignal()))
+        elif event == vtrace.NOTIFY_EXIT:
+            print('Target exited! Exit Code: {}'.format(trace.getMeta('ExitCode')))
+        elif event == vtrace.NOTIFY_DEBUG_PRINT:
+            print('Vtrace debug print event number: {}'.format(event))
+        else:
+            print('Unhandled vtrace event: {}'.format(event))
+        trace.runAgain()
+
+    def handle_debug(self, trace):
+        pass
 
 class DebuggerThread:
     def __init__(self, start_command):
@@ -101,10 +112,10 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
+        self.trace.kill()
         self.trace.sendBreak()
         self.trace.release()
         print('Trace detached, killing process')
-        os.kill(self.pid, signal.SIGKILL)
         self.alive = False
 
     def is_alive(self):
@@ -299,7 +310,5 @@ if __name__ == "__main__":
         servlet.serve_forever()
     except KeyboardInterrupt as e:
         servlet.log('Detected KeyboardInterrupt, shutting down')
-        servlet.dbg.trace.sendBreak()
-        servlet.dbg.trace.kill()
-        servlet.dbg.trace.release()
+        servlet.dbg.stop_target()
         raise e
