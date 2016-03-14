@@ -5,6 +5,7 @@ import signal
 import time
 import threading
 import subprocess
+import debugging
 
 import vtrace
 
@@ -57,7 +58,11 @@ class MyNotifier(vtrace.Notifier):
 
     def notify(self, event, trace):
         if event == vtrace.NOTIFY_SIGNAL:
-            print('Signal detected with code: {}'.format(trace.getCurrentSignal()))
+            sig = trace.getCurrentSignal()
+            if sig == 11:
+                self.handle_sigsegv(trace)
+            else:
+                print('Signal detected with code: {}'.format(sig))
         elif event == vtrace.NOTIFY_EXIT:
             print('Target exited! Exit Code: {}'.format(trace.getMeta('ExitCode')))
         elif event == vtrace.NOTIFY_DEBUG_PRINT:
@@ -68,6 +73,17 @@ class MyNotifier(vtrace.Notifier):
 
     def handle_debug(self, trace):
         pass
+
+    def handle_sigsegv(self, trace):
+        print('Segfault detected!')
+        print('Stack:')
+        print(debugging.stack_unwind(trace).__repr__())
+        print('Registers:')
+        print(debugging.dump_register_context(debugging.register_context(trace), print_dots=True))
+        print('Disas:')
+        disas = debugging.disasm_around(trace, trace.getStackTrace()[0][0], 10)
+        for inst in disas:
+            print("\t0x%08s %s\n" % (hex(inst.address).replace('L',''), str(inst)))
 
 class DebuggerThread:
     def __init__(self, start_command):
@@ -112,10 +128,16 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
-        self.trace.kill()
-        self.trace.sendBreak()
-        self.trace.release()
-        print('Trace detached, killing process')
+        if self.trace.isAttached():
+            try:
+                time.sleep(0.5)
+                self.trace.sendBreak()
+                self.trace.kill()
+                print('Target stopped')
+                self.trace.release()
+                print('Trace released')
+            except Exception as e:
+                print(e)
         self.alive = False
 
     def is_alive(self):
