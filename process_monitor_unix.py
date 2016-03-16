@@ -6,6 +6,7 @@ import time
 import threading
 import subprocess
 import debugging
+import datetime
 
 import vtrace
 
@@ -100,10 +101,12 @@ class DebuggerThread:
         self.exit_status = None
         self.alive = False
         self.trace = vtrace.getTrace()
+        self.starttime = None
 
     def spawn_target(self):
         print self.tokens
         self.pid = subprocess.Popen(self.tokens).pid
+        self.starttime = datetime.datetime.now()
         self.alive = True
 
     def start_monitoring(self):
@@ -138,6 +141,7 @@ class DebuggerThread:
                 print('Trace released')
             except Exception as e:
                 print(e)
+        print('Execution time of target: {}'.format(datetime.datetime.now() - self.starttime))
         self.alive = False
 
     def is_alive(self):
