@@ -5,6 +5,7 @@ import signal
 import time
 import threading
 import subprocess
+import datetime
 
 from boofuzz import pedrpc
 
@@ -61,10 +62,15 @@ class DebuggerThread:
         self.pid = None
         self.exit_status = None
         self.alive = False
+        self.time = None
+        self.starttime = None
 
     def spawn_target(self):
         print self.tokens
-        self.pid = subprocess.Popen(['valgrind', 'tool=callgrind'].extend(self.tokens)).pid
+        lol = ['valgrind', '--tool=callgrind', '--dump-line=yes']
+        lol.extend(self.tokens)
+        self.pid = subprocess.Popen(lol).pid
+        self.starttime = datetime.datetime.now()
         self.alive = True
 
     def start_monitoring(self):
@@ -85,6 +91,7 @@ class DebuggerThread:
 
     def stop_target(self):
         os.kill(self.pid, signal.SIGKILL)
+        self.time = datetime.datetime.now() - self.starttime
         self.alive = False
 
     def is_alive(self):
@@ -141,10 +148,9 @@ class NIXProcessMonitorPedrpcServer(pedrpc.Server):
         @rtype:  bool
         @return: Return True if the target is still active, False otherwise.
         """
-
+        rec_file = open(self.crash_bin, 'a')
         if not self.dbg.is_alive():
             exit_status = self.dbg.get_exit_status()
-            rec_file = open(self.crash_bin, 'a')
             if os.WCOREDUMP(exit_status):
                 reason = 'Segmentation fault'
             elif os.WIFSTOPPED(exit_status):
@@ -156,13 +162,21 @@ class NIXProcessMonitorPedrpcServer(pedrpc.Server):
             else:
                 reason = 'Process died for unknown reason'
 
-            self.last_synopsis = '[%s] Crash : Test - %d Reason - %s\n' % (
+            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s\n' % (
                 time.strftime("%I:%M.%S"),
                 self.test_number,
+                self.dbg.pid,
                 reason
             )
-            rec_file.write(self.last_synopsis)
-            rec_file.close()
+        else:
+            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s\n' % (
+                time.strftime('%I:%M.%S'),
+                self.test_number,
+                self.dbg.pid,
+                self.dbg.time
+            )
+        rec_file.write(self.last_synopsis)
+        rec_file.close()
 
         return self.dbg.is_alive()
 
