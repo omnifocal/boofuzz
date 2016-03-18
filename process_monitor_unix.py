@@ -32,7 +32,7 @@ Limitations
     - Currently only accepts one start_command
     - Limited 'crash binning'. Relies on the availability of core dumps. These
       should be created in the same directory the process is ran from on Linux
-      and in the (hidden) /cores directory on OS X. On OS X you have to add 
+      and in the (hidden) /cores directory on OS X. On OS X you have to add
       the option COREDUMPS=-YES- to /etc/hostconfig and then `ulimit -c
       unlimited` as far as I know. A restart may be required. The file
       specified by crash_bin will any other available details such as the test
@@ -64,7 +64,7 @@ class DebuggerThread:
 
     def spawn_target(self):
         print self.tokens
-        self.pid = subprocess.Popen(self.tokens).pid
+        self.pid = subprocess.Popen(['valgrind', 'tool=callgrind'].extend(self.tokens)).pid
         self.alive = True
 
     def start_monitoring(self):
@@ -276,4 +276,3 @@ if __name__ == "__main__":
 
     servlet = NIXProcessMonitorPedrpcServer("0.0.0.0", PORT, crash_bin, log_level)
     servlet.serve_forever()
-
