@@ -91,7 +91,6 @@ class DebuggerThread:
 
     def stop_target(self):
         os.kill(self.pid, signal.SIGKILL)
-        self.time = datetime.datetime.now() - self.starttime
         self.alive = False
 
     def is_alive(self):
@@ -173,7 +172,7 @@ class NIXProcessMonitorPedrpcServer(pedrpc.Server):
                 time.strftime('%I:%M.%S'),
                 self.test_number,
                 self.dbg.pid,
-                self.dbg.time
+                datetime.datetime.now() - self.dbg.starttime
             )
         rec_file.write(self.last_synopsis)
         rec_file.close()
