@@ -161,14 +161,15 @@ class NIXProcessMonitorPedrpcServer(pedrpc.Server):
             else:
                 reason = 'Process died for unknown reason'
 
-            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s\n' % (
+            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s,%s\n' % (
                 time.strftime("%I:%M.%S"),
                 self.test_number,
                 self.dbg.pid,
+                datetime.datetime.now() - self.dbg.starttime,
                 reason
             )
         else:
-            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s\n' % (
+            self.last_synopsis = '[%s] Test:%d,callgrind.out.%s,%s,None\n' % (
                 time.strftime('%I:%M.%S'),
                 self.test_number,
                 self.dbg.pid,
