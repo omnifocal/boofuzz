@@ -90,13 +90,21 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
-        os.kill(self.pid, signal.SIGTERM)
-        os.kill(self.pid, signal.SIGKILL)
+        while self.check_alive():
+            os.kill(self.pid, signal.SIGTERM)
+            time.sleep(0.5)
         self.alive = False
 
     def is_alive(self):
         return self.alive
 
+    def check_alive(self):
+        try:
+            os.kill(self.pid, 0)
+        except OSError:
+            return False
+        else:
+            return True
 
 class NIXProcessMonitorPedrpcServer(pedrpc.Server):
     def __init__(self, host, port, cbin, level=1):
