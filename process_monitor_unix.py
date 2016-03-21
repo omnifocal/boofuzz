@@ -90,6 +90,7 @@ class DebuggerThread:
         return self.exit_status
 
     def stop_target(self):
+        os.kill(self.pid, signal.SIGTERM)
         os.kill(self.pid, signal.SIGKILL)
         self.alive = False
 
