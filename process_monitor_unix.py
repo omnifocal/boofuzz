@@ -72,6 +72,7 @@ class DebuggerThread:
         self.pid = subprocess.Popen(lol).pid
         self.starttime = datetime.datetime.now()
         self.alive = True
+        print '################################# START PROCESS - PID {} ##############################'.format(self.pid)
 
     def start_monitoring(self):
         """
@@ -80,6 +81,7 @@ class DebuggerThread:
             self.exit_status = os.waitpid(self.pid, os.WNOHANG | os.WUNTRACED)
         """
 
+        print '################################# MONITORING PROC - PID {} #############################'.format(self.pid)
         self.exit_status = os.waitpid(self.pid, 0)
         # [0] is the pid
         self.exit_status = self.exit_status[1]
@@ -93,6 +95,7 @@ class DebuggerThread:
         while self.check_alive():
             os.kill(self.pid, signal.SIGTERM)
             time.sleep(0.5)
+        print '################################# STOPPED PROCESS - PID {} ##############################'.format(self.pid)
         self.alive = False
 
     def is_alive(self):
@@ -211,6 +214,11 @@ class NIXProcessMonitorPedrpcServer(pedrpc.Server):
         """
 
         self.log("starting target process")
+
+        if self.dbg and self.dbg.alive:
+            print 'Oh shit son, theres a proc running ey, kill that cunter!'
+            self.stop_target()
+            print 'Pretty sure I killed it....'
 
         self.dbg = DebuggerThread(self.start_commands[0])
         self.dbg.spawn_target()
